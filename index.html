@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>mini2fa prototype</title>
+  <script src="https://cdn.jsdelivr.net/npm/otplib@12.0.1/bundle/otplib.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 2rem auto; }
+    .hidden { display: none; }
+    .code { font-size: 1.5rem; font-weight: bold; }
+    .service { margin: 0.5rem 0; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <p>Enter master password:</p>
+    <input type="password" id="password">
+    <button id="unlock" type="button">Unlock</button>
+    <p id="error" class="error"></p>
+  </div>
+  <div id="codes" class="hidden"></div>
+  <script>
+    const encryptedVault = 'U2FsdGVkX19Xxjty2oShMzjiX0GP7XExKr6IfQGGpj0AhnoZqBTFTnw93dcM/Q6RHmE4oouPFX00VLz+hebEpj3Sw20BXkvjobqY+8gKhyHf9OTt6sof/I5jfM+MyBcmkIImIFtN5Ixa2ulkr6J4Mw==';
+    otplib.authenticator.options = { step: 30, digits: 6, algorithm: 'SHA1' };
+
+    const loginDiv = document.getElementById('login');
+    const codesDiv = document.getElementById('codes');
+    const errorP = document.getElementById('error');
+
+    function renderCodes(secrets) {
+      codesDiv.innerHTML = '';
+      Object.entries(secrets).forEach(([label, secret]) => {
+        const code = otplib.authenticator.generate(secret);
+        const el = document.createElement('div');
+        el.className = 'service';
+        el.innerHTML = `<span>${label}</span>: <span class="code">${code}</span>`;
+        codesDiv.appendChild(el);
+      });
+    }
+
+    document.getElementById('unlock').addEventListener('click', () => {
+      const pw = document.getElementById('password').value;
+      try {
+        const decrypted = CryptoJS.AES.decrypt(encryptedVault, pw).toString(CryptoJS.enc.Utf8);
+        if (!decrypted) throw new Error('bad password');
+        const secrets = JSON.parse(decrypted);
+        loginDiv.classList.add('hidden');
+        codesDiv.classList.remove('hidden');
+        renderCodes(secrets);
+        setInterval(() => renderCodes(secrets), 1000);
+      } catch (e) {
+        errorP.textContent = 'Invalid password or corrupted vault';
+      }
+    });
+  </script>
+</body>
+</html>
